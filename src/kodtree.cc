@@ -3,7 +3,7 @@
 #include <queue>
 #include <math.h>
 typedef double Point[3];
-extern void jf_error(char *ch);
+// extern void jf_error(char *ch); Already declared in kodtree.h
 extern bool ifBoxContainPoint( Point p,const Box &bound,const Box &rootbound);
 extern bool if2BoxOverlap(const Box &a,const Box &b);
 extern bool if2BoxNeighb(const Box &a,const Box &b);
@@ -447,6 +447,10 @@ void Kodtree::freeSubTree(CellNode3D *pcell){
 	for(int i=0; i<2; i++)
 		freeSubTree(pcell->child[i]);
 	delete pcell;
+	// JMM : 8/3/2014 : This shouldn't be necessary, since
+	// pcell shouldn't be used after it is deleted.
+	// But set pcell to 0 after deleting just in case.
+    pcell=0;
 }
 
 
@@ -521,7 +525,7 @@ void copy3DPoint(const Point &pfr,Point &pto){ //const or not?
 	pto[2]=pfr[2];
 }
 
-void jf_error(char *ch){
+void jf_error(const char *ch){
 
 		Rprintf("%s\n",ch);
 		throw(8);
@@ -533,9 +537,9 @@ bool ifBoxContainPoint( Point p,const Box &bound,const Box &rootbound){
 
 	if(p[0]<bound[0]||p[1]<bound[1]||p[2]<bound[2]||p[0]>bound[3]||p[1]>bound[4]||p[2]>bound[5])
 		return false;
-	else if(bound[0]!=rootbound[0]&&p[0]==bound[0]||
-		    bound[1]!=rootbound[1]&&p[1]==bound[1]||
-			bound[2]!=rootbound[2]&&p[2]==bound[2] ) //need or not to follow the convention?
+	else if((bound[0]!=rootbound[0]&&p[0]==bound[0])||
+		    (bound[1]!=rootbound[1]&&p[1]==bound[1])||
+			(bound[2]!=rootbound[2]&&p[2]==bound[2]) ) //need or not to follow the convention?
 		return false;
 	else 
 		return true;
@@ -554,9 +558,9 @@ bool ifPointOverlapWithBox(const Point &p,const Box &bd,const Box &rootbound,dou
 	}//convention
 	if(p[0]<bound[0]||p[1]<bound[1]||p[2]<bound[2]||p[0]>bound[3]||p[1]>bound[4]||p[2]>bound[5])
 		return false;
-	else if(bound[0]!=rootbound[0]&&p[0]==bound[0]||
-		    bound[1]!=rootbound[1]&&p[1]==bound[1]||
-			bound[2]!=rootbound[2]&&p[2]==bound[2] )
+	else if((bound[0]!=rootbound[0]&&p[0]==bound[0])||
+		    (bound[1]!=rootbound[1]&&p[1]==bound[1])||
+			(bound[2]!=rootbound[2]&&p[2]==bound[2]) )
 		return false;
 	else 
 		return true;
@@ -818,6 +822,7 @@ void sort1ShellFromaTri(int tri,double (*vertcoord)[3],int numvert,int (*trips)[
 		for(int i=0;i<3;i++){
 			if(tneighb[ctri][i]>=0) continue;
 			int tnb=getNeighbTriWithoutTopology(trips,ctri,i);
+            if(tnb < 0) throw(7);  /* JMM : 8/17/2014 : Fix Seg Fault as per B. Ripley and J. Liu */
 			if(trisort[tnb]==0){
 				if(!triSortAs2Nodes(trips[tnb],trips[ctri][(i+2)%3],trips[ctri][(i+1)%3]))
 					swap(trips[tnb][0],trips[tnb][1]);
@@ -847,9 +852,9 @@ int getNeighbTriWithoutTopology(int (*trips)[3],int tri,int ind){
 }
 bool triSortAs2Nodes(int tri3p[3],int va, int vb){
 
-	if(tri3p[0]==va&&tri3p[1]==vb||
-		tri3p[1]==va&&tri3p[2]==vb||
-		tri3p[2]==va&&tri3p[0]==vb)
+	if((tri3p[0]==va&&tri3p[1]==vb)||
+	   (tri3p[1]==va&&tri3p[2]==vb)||
+	   (tri3p[2]==va&&tri3p[0]==vb))
 		return true;
 	else
 		return false;

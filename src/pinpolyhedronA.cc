@@ -19,7 +19,7 @@
 #include <float.h> // For DBL_MAX
 
 #include "pinpolyhedron.h"
-extern  void jf_error(char *);
+extern  void jf_error(const char *);
 using namespace std;
 
 const double PointInPolyhedron::epsilonon=0.00000000000001;
@@ -30,7 +30,8 @@ int PointInPolyhedron:: numvert;
 int (*PointInPolyhedron::trips)[3];
 int PointInPolyhedron::numtri;
 int absolute;
-int *startaddress=(int *)1;
+//int *startaddress=(int *)1;
+int *startaddress=0;
 extern int positionOfPointProjectToTri(double p[3],double p0[3],double p1[3],double p2[3]);
 extern double sqDistPointToTri(double p[3],double p0[3],double p1[3],double p2[3]);
 extern double sqDistPointToSeg3D(double p[3],double p0[3],double p1[3]);
@@ -267,6 +268,7 @@ void PointInPolyhedron::getTheClosestTriAmongCell(double p[3],CellNode3D *pcell,
 		int tri0,tri;
 		tri0=tri=triofnode[v];
 		do{
+            if(tri < 0) throw(7); /* JMM : 8/17/2014 : Fix Seg Fault as per B. Ripley and J. Liu */
 //			if(triused[tri]==1) continue;
 //			else triused[tri]=1;
 			getEndPointOfTri(tri,p0,p1,p2);
@@ -375,7 +377,7 @@ PointInPolyhedron::PointInPolyhedron(double (*vti)[3], int numvi,int (*tris)[3],
 	void **wvti;
 	wrapPointsUpasVerts(wvti);
 	polytree=new Kodtree(wvti,numvert,pofvforcoordnodes3,3,epsoverlap);
-	delete wvti;
+	delete [] wvti;
     polytree->setFuncExinfoShouldbeInCell(ifexinfoshouldbeincell);
 	polytree->setFuncExinfoOverlapBox(ifexinfooverlapbox);
 	for(int i=0; i<numtri; i++)
@@ -441,7 +443,7 @@ int PointInPolyhedron::classifyVert(double p[3],int vert){
 
 	getVertsAroundaVert(vert,neighbverts,numbv);
 	getThePointFormingLeastAngleWith2Points(p,vert,neighbverts,numbv,maxcosa,vertridge);
-	delete neighbverts;
+	delete [] neighbverts; /* JMM : 8/17/2014 : Fix Seg Fault as per B. Ripley */
 	if(maxcosa>epscoplanar)
 	//{
 	//	get2TriCom2Vert(vert,vertridge,tria,trib);
@@ -775,6 +777,11 @@ void PIP3D_jianfei_cpp(double *vertices, int *numV,
             vert[i][1] += minY;
             vert[i][2] += minZ;
         }
+
+        // RELEASE MEMORY!!
+        delete [] tris;
+        delete [] vert;
+        if ( ptpoly != 0 ) delete ptpoly;
         return;
     }
 
@@ -1146,7 +1153,7 @@ void PolyQuadtree::sortTheDistancesOfChildrenFromPoint(double p[2],CellNode2D *p
 	for(int i=0; i<4; i++){
 		int index=0;
 		for(int j=0; j<4; j++)
-			if(distpc[i]>distpc[j]||i>j&&distpc[i]==distpc[j])
+			if(distpc[i]>distpc[j]||(i>j&&distpc[i]==distpc[j]))
 				index++;
 		sortsub[index]=pcell->child[i];
 	}
@@ -1315,7 +1322,7 @@ void PolyQuadtree::getTheClosestSegAmongCell(double p[2],CellNode2D *pcell, doub
 	if(!pcell||!pcell->isLeaf())
 		jf_error("error gettheclosetsegamongcell");
 	if(pcell->psegar!=0)
-		for(int i=0; i<pcell->psegar->size(); i++){
+		for(unsigned int i=0; i<pcell->psegar->size(); i++){
 			seg=(*(pcell->psegar))[i];
 			getEndPointOfSeg(seg,p0,p1);
 			if((distemp=squareDistPointToSeg(p,p0,p1))<dist){
@@ -1776,23 +1783,23 @@ int convexityOf3Point(double p0[2],double p1[2],double p2[2],double eps=0){
 }
 bool ifSegOverlapBox2D(double ps[2],double pe[2],double bd[4],double eps){
 
-	double bound[4];
+    double bound[4];
 
-	double a=bd[2]-bd[0];
-	double b=bd[3]-bd[1];
-	bound[0]=bd[0]-eps*a;
-	bound[1]=bd[1]-eps*b;
-	bound[2]=bd[2]+eps*a;
-	bound[3]=bd[3]+eps*b;
+    double a=bd[2]-bd[0];
+    double b=bd[3]-bd[1];
+    bound[0]=bd[0]-eps*a;
+    bound[1]=bd[1]-eps*b;
+    bound[2]=bd[2]+eps*a;
+    bound[3]=bd[3]+eps*b;
 
-	if(ps[0]<bound[0]&&pe[0]<bound[0]||ps[0]>bound[2]&&pe[0]>bound[2]||
-	   ps[1]<bound[1]&&pe[1]<bound[1]||ps[1]>bound[3]&&pe[1]>bound[3]) 
-	   return false;
-	else if(ps[0]>=bound[0]&&ps[1]>=bound[1]&&ps[0]<=bound[2]&&ps[1]<=bound[3]
-	 ||pe[0]>=bound[0]&&pe[1]>=bound[1]&&pe[0]<=bound[2]&&pe[1]<=bound[3])
-		return true;
-	else
-		return if4CornerOfBoxAtDifferentSideOfSeg(ps,pe,bound);
+    if((ps[0]<bound[0]&&pe[0]<bound[0])||(ps[0]>bound[2]&&pe[0]>bound[2])||
+       (ps[1]<bound[1]&&pe[1]<bound[1])||(ps[1]>bound[3]&&pe[1]>bound[3])) 
+        return false;
+    else if((ps[0]>=bound[0]&&ps[1]>=bound[1]&&ps[0]<=bound[2]&&ps[1]<=bound[3])
+          ||(pe[0]>=bound[0]&&pe[1]>=bound[1]&&pe[0]<=bound[2]&&pe[1]<=bound[3]))
+        return true;
+    else
+        return if4CornerOfBoxAtDifferentSideOfSeg(ps,pe,bound);
 }
 bool if4CornerOfBoxAtDifferentSideOfSeg(double ps[2],double pe[2],double bound[4]){
 
@@ -1870,6 +1877,10 @@ void PolyQuadtree::freeSubQuadtree(CellNode2D *pcell){
 	for(int i=0; i<4; i++)
 		freeSubQuadtree(pcell->child[i]);
 	delete pcell;
+	// JMM : 8/3/2014 : This shouldn't be necessary, since
+	// pcell shouldn't be used after it is deleted.
+	// But set pcell to 0 after deleting just in case.
+    pcell=0;
 }
 
 CellNode2D ::CellNode2D(double bd[4]){
@@ -1932,16 +1943,29 @@ void PIP2D_jianfei_cpp(double *vertices, int *numV,
             vert[i][0] += minX;
             vert[i][1] += minY;
         }
+
+        // RELEASE MEMORY!!
+        delete [] vert;
+        if ( ptpoly != 0 ) delete ptpoly;
+
         return;
     }
 
     // Loop over queries, feed them to the Jianfei method.
     // Don't forget about the minX, minY, and minZ shifts.
+    //
+    // JMM (8/3/2014): Use TRY-CATCH to catch computational
+    // errors and set RESULT[I] accordingly.
     double q[2]={0,0};
     for( i=0; i<(*numQ); i++) {
-        q[0]      = query[i+0*(*numQ)] - minX;
-        q[1]      = query[i+1*(*numQ)] - minY;
-        result[i] = ptpoly->isPinpolygon(q);
+        q[0] = query[i+0*(*numQ)] - minX;
+        q[1] = query[i+1*(*numQ)] - minY;
+        try {
+            result[i] = ptpoly->isPinpolygon(q);
+        }
+        catch (...) {
+            result[i] = -8;
+        }
     }
 
     // RELEASE MEMORY!!
