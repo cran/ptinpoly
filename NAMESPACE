@@ -1,4 +1,6 @@
 useDynLib(ptinpoly)
+import(misc3d)
+
 export(pip2d)
 export(pip3d)
 export(blocks2vf)
