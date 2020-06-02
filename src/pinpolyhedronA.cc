@@ -30,8 +30,10 @@ int PointInPolyhedron:: numvert;
 int (*PointInPolyhedron::trips)[3];
 int PointInPolyhedron::numtri;
 int absolute;
-//int *startaddress=(int *)1;
-int *startaddress=0;
+// JMM (5/26/2020): Switch to initializing *startaddress to 1 rather than 0.
+// Reference: email from J. Liu sent 5/30/2020 at 10:59 PM EST
+int *startaddress=(int *)1;
+//int *startaddress=0;
 extern int positionOfPointProjectToTri(double p[3],double p0[3],double p1[3],double p2[3]);
 extern double sqDistPointToTri(double p[3],double p0[3],double p1[3],double p2[3]);
 extern double sqDistPointToSeg3D(double p[3],double p0[3],double p1[3]);
@@ -57,7 +59,9 @@ void PointInPolyhedron::wrapPointsUpasVerts(void  ** &vti){
 
 	vti=new void *[numvert];
 	for(int i=0; i<numvert; i++)
-		vti[i]=startaddress+i;
+		// JMM (5/26/2020): Cast void** to int ** before dereferencing it (because startaddress is int*).
+		*((int **)vti+i)=startaddress+i;
+		//vti[i]=startaddress+i;
 }
 
 bool   PointInPolyhedron::ifexinfooverlapbox(void *info,int infotype,const Box &bd,double eps){
@@ -381,6 +385,7 @@ PointInPolyhedron::PointInPolyhedron(double (*vti)[3], int numvi,int (*tris)[3],
     polytree->setFuncExinfoShouldbeInCell(ifexinfoshouldbeincell);
 	polytree->setFuncExinfoOverlapBox(ifexinfooverlapbox);
 	for(int i=0; i<numtri; i++)
+		// JMM (5/26/2020): the first argument of insertExinfo has been changed to int* in kodtree.h
 		polytree->insertExinfo(i+startaddress,1);
 	setGCellAttribOfSubTree(polytree->getRoot());
 	//triused=new int[numtri];
@@ -590,8 +595,8 @@ void PointInPolyhedron::getThePointFormingLeastAngleWith2Points(double p[3],int 
 		vec_2p(pv,vertcoord[nbverts[i]],pvpi);
 		vec_uni(pvpi);
 		if((dp=vec_dotp(pvpi,pvp))>maxcosa){
-			if(dp>epscoplanar)
-				dp=dp;
+//			if(dp>epscoplanar)
+//				dp=dp;
 			maxcosa=dp;
 			vridge=nbverts[i];
 		}
@@ -1762,8 +1767,8 @@ void PolyQuadtree::compVertattrib(void){
 	for(int i=0 ;i<numvert; i++){
 		int vf=seg2end[v2seg[i][0]][0];
 		int vb=seg2end[v2seg[i][1]][1];
-		if(i==11821) 
-			i=i;
+//		if(i==11821) 
+//			i=i;
 		vertattrib[i]=-convexityOf3Point(vert[vf],vert[i],vert[vb],epscoplanar);
 	}
 }
